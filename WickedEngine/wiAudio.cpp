@@ -385,6 +385,28 @@ namespace wi::audio
 
 		return true;
 	}
+
+	unsigned __int64 GetSamplesPlayed(SoundInstance* instance)
+	{
+		if (instance != nullptr && instance->IsValid())
+		{
+			auto instanceinternal = to_internal(instance);
+			XAUDIO2_VOICE_STATE xstate;
+			instanceinternal->sourceVoice->GetState(&xstate, 0);
+			return (xstate.SamplesPlayed);
+		}
+		return(0);
+	}
+
+	wi::vector<uint8_t> * GetAudioData(SoundInstance* instance)
+	{
+		if (instance != nullptr && instance->IsValid())
+		{
+			auto instanceinternal = to_internal(instance);
+			return &(instanceinternal->soundinternal->audioData);
+		}
+	}
+
 	void Play(SoundInstance* instance)
 	{
 		if (instance != nullptr && instance->IsValid())

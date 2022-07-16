@@ -1,7 +1,7 @@
 #pragma once
 #include "CommonInclude.h"
 #include "wiMath.h"
-
+#include "wiVector.h"
 #include <memory>
 #include <string>
 
@@ -70,6 +70,9 @@ namespace wi::audio
 
 	void SetSubmixVolume(SUBMIX_TYPE type, float volume);
 	float GetSubmixVolume(SUBMIX_TYPE type);
+
+	wi::vector<uint8_t> * GetAudioData(SoundInstance* instance);
+	unsigned __int64 GetSamplesPlayed(SoundInstance* instance);
 
 	// SoundInstance3D can be attached to a SoundInstance for a 3D effect
 	struct SoundInstance3D

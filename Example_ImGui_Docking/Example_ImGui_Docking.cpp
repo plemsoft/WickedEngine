@@ -28,6 +28,7 @@
 #include "..\WickedEngine\wiPrimitive.h"
 #include "..\WickedEngine\wiRenderPath3D.h"
 #include "..\Editor\ModelImporter.h"
+#include "..\WickedEngine\wiAudio.h"
 
 #include <fstream>
 #include <thread>
@@ -52,6 +53,7 @@ HWND hWnd = NULL;
 wi::graphics::SwapChain myswapChain;
 void style_dark_ruda(void);
 void add_my_font(const char* fontpath);
+void InvertEulerIfPossible(float& ang_x, float& ang_y, float& ang_z);
 Example_ImGuiRenderer* active_render = nullptr;
 
 struct ImGui_Impl_Data
@@ -390,6 +392,16 @@ void Example_ImGuiRenderer::Load()
 
 	// Load model.
 	wi::scene::LoadModel("../Content/models/bloom_test.wiscene");
+//	wi::scene::LoadModel("../Content/a-my-sound-test.wiscene");
+
+	Entity soundentity = GetScene().Entity_CreateSound("WAVTestSound", "../Content/DirtyFlint - Dark Energy.wav");
+	SoundComponent* sound = GetScene().sounds.GetComponent(soundentity);
+
+	sound->SetDisable3D(true);
+	wi::audio::SetVolume(1.0f, &sound->soundinstance);
+	sound->Play();
+
+	wi::audio::SetVolume(0.2); //PE: Keep it low for now.
 
 	RenderPath3D::Load();
 
@@ -706,6 +718,131 @@ void Example_ImGuiRenderer::Update(float dt)
 			ImGui::Indent(-4);
 		}
 
+
+		//SoundComponent
+		if (ImGui::CollapsingHeader(ICON_MD_DATA_OBJECT "  SoundComponent", ImGuiTreeNodeFlags_DefaultOpen)) //ImGuiTreeNodeFlags_None
+		{
+			ImGui::Indent(4);
+			ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(0.0f, 3.0f));
+			auto size = scene.sounds.GetCount();
+			static float use_fixed_height = 0;
+			if (size > 14) use_fixed_height = 263.0;
+			bool bUseChild = false;
+			if (use_fixed_height > 0) bUseChild = true;
+			if (bUseChild) ImGui::BeginChild("##sounds", ImVec2(0.0f, use_fixed_height), false, ImGuiWindowFlags_None); //ImGuiWindowFlags_AlwaysVerticalScrollbar
+
+			for (int i = 0; i < size; i++)
+			{
+				Entity e = scene.sounds.GetEntity(i);
+				SoundComponent& sound = scene.sounds[i];
+
+				//SoundComponent* sound = GetScene().sounds.GetComponent(i);
+				//std::shared_ptr<SoundInternal> soundinternal = std::make_shared<SoundInternal>();
+
+				wi::vector<uint8_t> * audioData;
+				audioData = GetAudioData(&sound.soundinstance);
+				
+				NameComponent& name = *scene.names.GetComponent(e);
+				if (name.name.empty()) name.name = std::to_string(e);
+
+				int channels = 2;
+				int bytespersample = 4; //left 2 right 2
+
+				//unsigned __int64 current_position = GetSamplesPlayed(&sound.soundinstance) &0xfffffffc;//e/
+				unsigned __int64 current_position = GetSamplesPlayed(&sound.soundinstance) &0xfffffffc;//e/
+				current_position *= bytespersample;
+				//current_position += 16;
+				//current_position /= 8;
+				//static int current_position = 0;
+				//current_position += 128;
+				//current_position = 0;
+				#define WAVESTEP 1024
+				static float arr_l[WAVESTEP], arr_r[WAVESTEP];
+				float steps = audioData->size() / (WAVESTEP-1);
+				unsigned __int64 display_position = 0;
+				for (int i = 0; i < WAVESTEP; i++)
+				{
+					arr_l[i] = 0;
+					arr_r[i] = 0;
+					int pos = i * 2; // *64; //PE: Skip some its really fast.
+					if (pos + display_position < audioData->size())
+					{
+						//16 bits.
+						short val_l = 0;
+						short val_r = 0;
+						int iValR = 0;
+						//val_l = (* (audioData->data() + current_position + 0 + (pos * bytespersample)) ) + (* (audioData->data() + current_position + 1 + (pos * bytespersample))>> 8);
+
+						val_l = (*(audioData->data() + display_position + 0 + (pos))) +(*(audioData->data() + display_position + 1 + (pos)) << 8);
+						val_r = (*(audioData->data() + display_position + 2 + (pos))) + (*(audioData->data() + display_position + 3 + (pos)) << 8);
+
+						arr_l[i] = (float) val_l;
+						arr_r[i] = (float) val_r;
+					}
+					display_position += steps;
+				}
+
+				#define AVGSTEPS 128
+				float avg = 0;
+				//PE: Get avg.
+				unsigned __int64 avg_position = current_position;
+				for (int i = 0; i < AVGSTEPS; i++)
+				{
+					int pos = i * 2; // *64; //PE: Skip some its really fast.
+					if (pos + avg_position < audioData->size())
+					{
+						short val_l = (*(audioData->data() + avg_position + 0 + (pos))) + (*(audioData->data() + avg_position + 1 + (pos)) << 8);
+						short val_r = (*(audioData->data() + avg_position + 2 + (pos))) + (*(audioData->data() + avg_position + 3 + (pos)) << 8);
+						avg += val_r + val_l;
+					}
+				}
+				avg /= AVGSTEPS;
+
+				static int beat_timer = 0;
+				static int beat_events = 0;
+				bool beat = false;
+
+				beat = abs(avg) > 22000; //&& avg < 8000;
+				if (beat_timer > 0)
+				{
+					beat_timer--;
+					beat = true;
+				}
+				else
+				{
+					if (beat)
+						beat_timer = 5;
+				}
+
+				ImGui::PushItemWidth(-1);
+				if(beat) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0, 0.0, 0.0, 1.0));
+				ImGui::PlotLines("##Frame Times1", arr_l, IM_ARRAYSIZE(arr_l), 0,"Left Channel", -32768, 32768, ImVec2(0, 180));
+				ImGui::PlotLines("##Frame Times1", arr_r, IM_ARRAYSIZE(arr_r), 0, "Right Channel", -32768, 32768, ImVec2(0, 180));
+				if (beat) ImGui::PopStyleColor();
+				ImGui::PopItemWidth();
+
+
+				bool is_selected = false;
+				if (highlight_entity == e) is_selected = true;;
+				std::string s = "sounds " + std::to_string(i) + ": " + name.name;
+				ImGui::PushItemWidth(-4);
+				if (ImGui::Selectable(s.c_str(), is_selected))
+				{
+					highlight_entity = e;
+				}
+				if (is_selected && bScrollToObject)
+				{
+					bScrollToObject = false;
+					ImGui::SetScrollHereY();
+				}
+				ImGui::PopItemWidth();
+			}
+			if (bUseChild) ImGui::EndChild();
+
+			ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(0.0f, 3.0f));
+			ImGui::Indent(-4);
+		}
+
 		if (ImGui::CollapsingHeader( ICON_MD_TEXTURE "  Scene Materials", ImGuiTreeNodeFlags_DefaultOpen)) //ImGuiTreeNodeFlags_None
 		{
 			ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(0.0f, 3.0f));
@@ -841,12 +978,16 @@ void Example_ImGuiRenderer::Update(float dt)
 			{
 
 				XMFLOAT4X4 obj_world;
-				float matrixTranslation[3], matrixRotation[3], matrixScale[3];
+				float matrixTranslation[3], matrixRotation[3], matrixScale[3], eulerRotation[3];
 				TransformComponent* obj_tranform = scene.transforms.GetComponent(highlight_entity);
 				if (obj_tranform)
 				{
 					XMStoreFloat4x4(&obj_world, obj_tranform->GetLocalMatrix());
 					ImGuizmo::DecomposeMatrixToComponents(&obj_world._11, matrixTranslation, matrixRotation, matrixScale);
+					eulerRotation[0] = matrixRotation[0];
+					eulerRotation[1] = matrixRotation[1];
+					eulerRotation[2] = matrixRotation[2];
+					InvertEulerIfPossible(eulerRotation[0], eulerRotation[1], eulerRotation[2]);
 				}
 
 				#ifdef USEBOUNDSIZING
@@ -909,10 +1050,11 @@ void Example_ImGuiRenderer::Update(float dt)
 						if (obj_tranform != nullptr)
 						{
 							ImGui::PushItemWidth(-4);
-							if (ImGui::InputFloat3("##Rt", matrixRotation, "%.3f", input_text_flags))
+							if (ImGui::InputFloat3("##Rt", eulerRotation, "%.3f", input_text_flags))
 							{
 								bUpdateTransform = true;
 							}
+
 							ImGui::PopItemWidth();
 						}
 						ImGui::EndTabItem();
@@ -990,7 +1132,7 @@ void Example_ImGuiRenderer::Update(float dt)
 						{
 							bUpdateTransform = true;
 						}
-						if (ImGui::InputFloat3("##Rt", matrixRotation, "%.3f", input_text_flags))
+						if (ImGui::InputFloat3("##Rt", eulerRotation, "%.3f", input_text_flags))
 						{
 							bUpdateTransform = true;
 						}
@@ -1004,7 +1146,7 @@ void Example_ImGuiRenderer::Update(float dt)
 
 					if (input_text_disable == 0 && bUpdateTransform)
 					{
-						ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, &obj_world._11);
+						ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, eulerRotation, matrixScale, &obj_world._11);
 						obj_tranform->world = (XMFLOAT4X4)&obj_world._11;
 						obj_tranform->ApplyTransform();
 					}
@@ -1711,5 +1853,48 @@ void style_dark_ruda( void )
 	style.Colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.0f, 1.0f, 1.0f, 0.699999988079071f);
 	style.Colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.800000011920929f, 0.800000011920929f, 0.800000011920929f, 0.2000000029802322f);
 	style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.800000011920929f, 0.800000011920929f, 0.800000011920929f, 0.3499999940395355f);
+}
+
+void InvertEulerIfPossible(float& ang_x, float& ang_y, float& ang_z)
+{
+	//PE: Trying to make matrix/quaternion->euler look better for user eular text input. (a possible gimbal lock will reverse x,z)
+	if (ang_x < 0.0f) ang_x += 360.0f;
+	if (ang_y < 0.0f) ang_y += 360.0f;
+	if (ang_z < 0.0f) ang_z += 360.0f;
+	if (ang_x > 360.0f) ang_x -= 360.0f;
+	if (ang_y > 360.0f) ang_y -= 360.0f;
+	if (ang_z > 360.0f) ang_z -= 360.0f;
+	bool bZReversed = false, bXReversed = false, bXGimbalLock = false, bZGimbalLock = false;
+	float presion = 0.05;
+	if (ang_z >= (180.0f - presion) && ang_z <= (180.0f + presion)) bZReversed = true;
+	if (ang_x >= (180.0f - presion) && ang_x <= (180.0f + presion)) bXReversed = true; // 180
+	if (ang_x >= (90.0f - presion) && ang_x <= (90.0f + presion)) bXGimbalLock = true; // 90
+	if (ang_z >= (300.0f - presion) && ang_z <= (300.0f + presion)) bZGimbalLock = true; // 300
+	if (bZReversed && bXReversed)
+	{
+		//PE: When both z and x Reversed it count backward, so 180-ang_y = real Y without x,z.
+		ang_x = 0.0f;
+		ang_z = 0.0f;
+		ang_y = (180.0f - ang_y);
+	}
+	else if (!bXGimbalLock && bZReversed)
+	{
+		ang_x -= 180.0f;
+		ang_y = (180.0f - ang_y);
+		ang_z = 0.0f;
+	}
+	else if (bXGimbalLock && bZGimbalLock)
+	{
+		//PE: Y dont change. z is just moved to x
+		ang_x = ang_z + 90;
+		ang_z = 0.0f;
+	}
+	if (ang_x < 0.0f) ang_x += 360.0f;
+	if (ang_y < 0.0f) ang_y += 360.0f;
+	if (ang_z < 0.0f) ang_z += 360.0f;
+	if (ang_x > 360.0f) ang_x -= 360.0f;
+	if (ang_y > 360.0f) ang_y -= 360.0f;
+	if (ang_z > 360.0f) ang_z -= 360.0f;
+	return;
 }
 
