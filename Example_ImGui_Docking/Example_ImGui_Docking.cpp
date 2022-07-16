@@ -392,16 +392,15 @@ void Example_ImGuiRenderer::Load()
 
 	// Load model.
 	wi::scene::LoadModel("../Content/models/bloom_test.wiscene");
-//	wi::scene::LoadModel("../Content/a-my-sound-test.wiscene");
 
-	Entity soundentity = GetScene().Entity_CreateSound("WAVTestSound", "../Content/DirtyFlint - Dark Energy.wav");
+	Entity soundentity = GetScene().Entity_CreateSound("WAVTestSound", "../Content/DirtyFlint - Dark Energy Trailer 01.wav");
 	SoundComponent* sound = GetScene().sounds.GetComponent(soundentity);
 
 	sound->SetDisable3D(true);
 	wi::audio::SetVolume(1.0f, &sound->soundinstance);
 	sound->Play();
 
-	wi::audio::SetVolume(0.2); //PE: Keep it low for now.
+	wi::audio::SetVolume(0.3); //PE: Keep it low for now.
 
 	RenderPath3D::Load();
 
@@ -736,9 +735,6 @@ void Example_ImGuiRenderer::Update(float dt)
 				Entity e = scene.sounds.GetEntity(i);
 				SoundComponent& sound = scene.sounds[i];
 
-				//SoundComponent* sound = GetScene().sounds.GetComponent(i);
-				//std::shared_ptr<SoundInternal> soundinternal = std::make_shared<SoundInternal>();
-
 				wi::vector<uint8_t> * audioData;
 				audioData = GetAudioData(&sound.soundinstance);
 				
@@ -748,15 +744,9 @@ void Example_ImGuiRenderer::Update(float dt)
 				int channels = 2;
 				int bytespersample = 4; //left 2 right 2
 
-				//unsigned __int64 current_position = GetSamplesPlayed(&sound.soundinstance) &0xfffffffc;//e/
-				unsigned __int64 current_position = GetSamplesPlayed(&sound.soundinstance) &0xfffffffc;//e/
+				unsigned __int64 current_position = GetSamplesPlayed(&sound.soundinstance) &0xfffffffc;
 				current_position *= bytespersample;
-				//current_position += 16;
-				//current_position /= 8;
-				//static int current_position = 0;
-				//current_position += 128;
-				//current_position = 0;
-				#define WAVESTEP 1024
+				#define WAVESTEP 2048
 				static float arr_l[WAVESTEP], arr_r[WAVESTEP];
 				float steps = audioData->size() / (WAVESTEP-1);
 				unsigned __int64 display_position = 0;
@@ -764,14 +754,13 @@ void Example_ImGuiRenderer::Update(float dt)
 				{
 					arr_l[i] = 0;
 					arr_r[i] = 0;
-					int pos = i * 2; // *64; //PE: Skip some its really fast.
+					int pos = i * channels;
 					if (pos + display_position < audioData->size())
 					{
 						//16 bits.
 						short val_l = 0;
 						short val_r = 0;
 						int iValR = 0;
-						//val_l = (* (audioData->data() + current_position + 0 + (pos * bytespersample)) ) + (* (audioData->data() + current_position + 1 + (pos * bytespersample))>> 8);
 
 						val_l = (*(audioData->data() + display_position + 0 + (pos))) +(*(audioData->data() + display_position + 1 + (pos)) << 8);
 						val_r = (*(audioData->data() + display_position + 2 + (pos))) + (*(audioData->data() + display_position + 3 + (pos)) << 8);
@@ -788,7 +777,7 @@ void Example_ImGuiRenderer::Update(float dt)
 				unsigned __int64 avg_position = current_position;
 				for (int i = 0; i < AVGSTEPS; i++)
 				{
-					int pos = i * 2; // *64; //PE: Skip some its really fast.
+					int pos = i * channels;
 					if (pos + avg_position < audioData->size())
 					{
 						short val_l = (*(audioData->data() + avg_position + 0 + (pos))) + (*(audioData->data() + avg_position + 1 + (pos)) << 8);
@@ -802,7 +791,7 @@ void Example_ImGuiRenderer::Update(float dt)
 				static int beat_events = 0;
 				bool beat = false;
 
-				beat = abs(avg) > 22000; //&& avg < 8000;
+				beat = abs(avg) > 26000;
 				if (beat_timer > 0)
 				{
 					beat_timer--;
@@ -816,8 +805,20 @@ void Example_ImGuiRenderer::Update(float dt)
 
 				ImGui::PushItemWidth(-1);
 				if(beat) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0, 0.0, 0.0, 1.0));
+				//PE: Display audio data.
+				ImVec2 dpos = ImGui::GetWindowPos() + ImGui::GetCursorPos();
 				ImGui::PlotLines("##Frame Times1", arr_l, IM_ARRAYSIZE(arr_l), 0,"Left Channel", -32768, 32768, ImVec2(0, 180));
+				ImGuiWindow* window = ImGui::GetCurrentWindow();
+				float draw_step_percent = (ImGui::GetWindowContentRegionWidth() - 4.0); // / 100.0f;
+				float screenpos = ((float)current_position / (float)audioData->size()) * draw_step_percent;
+				if (window && window->DrawList && screenpos < draw_step_percent && screenpos > 0)
+					window->DrawList->AddLine(dpos + ImVec2(screenpos, 0), dpos + ImVec2(screenpos, 180), ImGui::GetColorU32(ImVec4(1.0, 0.7, 0, 0.7)), 2.0f);
+
+				dpos = ImGui::GetWindowPos() + ImGui::GetCursorPos();
 				ImGui::PlotLines("##Frame Times1", arr_r, IM_ARRAYSIZE(arr_r), 0, "Right Channel", -32768, 32768, ImVec2(0, 180));
+				if (window && window->DrawList && screenpos < draw_step_percent && screenpos > 0)
+					window->DrawList->AddLine(dpos + ImVec2(screenpos, 0), dpos + ImVec2(screenpos, 180), ImGui::GetColorU32(ImVec4(1.0, 0.7, 0, 0.7)), 2.0f);
+
 				if (beat) ImGui::PopStyleColor();
 				ImGui::PopItemWidth();
 
