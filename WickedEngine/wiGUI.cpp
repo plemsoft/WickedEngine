@@ -284,8 +284,9 @@ namespace wi::gui
 			}
 
 			static const float _border = 2;
-			float textWidth = tooltipFont.TextWidth() + _border * 2;
-			float textHeight = tooltipFont.TextHeight() + _border * 2;
+			XMFLOAT2 textSize = tooltipFont.TextSize();
+			float textWidth = textSize.x + _border * 2;
+			float textHeight = textSize.y + _border * 2;
 
 			XMFLOAT2 pointer = GetPointerHitbox().pos;
 			tooltipFont.params.posX = pointer.x;
@@ -1923,6 +1924,14 @@ namespace wi::gui
 			}
 		}
 	}
+	void ComboBox::SetItemText(int index, const std::string& text)
+	{
+		items[index].name = text;
+	}
+	void ComboBox::SetItemUserdata(int index, uint64_t userdata)
+	{
+		items[index].userdata = userdata;
+	}
 	std::string ComboBox::GetItemText(int index) const
 	{
 		if (index >= 0)
@@ -2049,6 +2058,8 @@ namespace wi::gui
 		scrollbar_vertical.sprites_knob[ScrollBar::SCROLLBAR_GRABBED].params.color = wi::Color::White();
 		scrollbar_vertical.knob_inset_border = XMFLOAT2(4, 2);
 		AddWidget(&scrollbar_vertical);
+
+		scrollable_area.ClearTransform();
 
 
 		SetEnabled(true);
