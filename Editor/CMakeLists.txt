@@ -14,6 +14,7 @@ set (SOURCE_FILES
 	LayerWindow.cpp
 	LightWindow.cpp
 	MaterialWindow.cpp
+	MaterialPickerWindow.cpp
 	MeshWindow.cpp
 	ModelImporter_GLTF.cpp
 	ModelImporter_OBJ.cpp
@@ -28,6 +29,8 @@ set (SOURCE_FILES
 	TransformWindow.cpp
 	Translator.cpp
 	WeatherWindow.cpp
+	OptionsWindow.cpp
+	ComponentsWindow.cpp
 	TerrainGenerator.cpp
 	xatlas.cpp
 )

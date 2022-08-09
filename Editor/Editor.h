@@ -1,30 +1,11 @@
 #pragma once
 #include "WickedEngine.h"
 #include "Translator.h"
-#include "TerrainGenerator.h"
 #include "wiScene_BindLua.h"
+#include "OptionsWindow.h"
+#include "ComponentsWindow.h"
 
-#include "MaterialWindow.h"
-#include "PostprocessWindow.h"
-#include "WeatherWindow.h"
-#include "ObjectWindow.h"
-#include "MeshWindow.h"
-#include "CameraWindow.h"
-#include "RendererWindow.h"
-#include "EnvProbeWindow.h"
-#include "DecalWindow.h"
-#include "LightWindow.h"
-#include "AnimationWindow.h"
-#include "EmitterWindow.h"
-#include "HairParticleWindow.h"
-#include "ForceFieldWindow.h"
-#include "SoundWindow.h"
-#include "PaintToolWindow.h"
-#include "SpringWindow.h"
-#include "IKWindow.h"
-#include "TransformWindow.h"
-#include "LayerWindow.h"
-#include "NameWindow.h"
+#include "IconDefinitions.h"
 
 class EditorLoadingScreen : public wi::LoadingScreen
 {
@@ -39,81 +20,19 @@ public:
 class Editor;
 class EditorComponent : public wi::RenderPath2D
 {
-private:
-	wi::Resource pointLightTex, spotLightTex, dirLightTex, decalTex, forceFieldTex, emitterTex, hairTex, cameraTex, armatureTex, soundTex;
 public:
-	MaterialWindow materialWnd;
-	PostprocessWindow postprocessWnd;
-	WeatherWindow weatherWnd;
-	ObjectWindow objectWnd;
-	MeshWindow meshWnd;
-	CameraWindow cameraWnd;
-	RendererWindow rendererWnd;
-	EnvProbeWindow envProbeWnd;
-	DecalWindow decalWnd;
-	SoundWindow soundWnd;
-	LightWindow lightWnd;
-	AnimationWindow animWnd;
-	EmitterWindow emitterWnd;
-	HairParticleWindow hairWnd;
-	ForceFieldWindow forceFieldWnd;
-	PaintToolWindow paintToolWnd;
-	SpringWindow springWnd;
-	IKWindow ikWnd;
-	TransformWindow transformWnd;
-	LayerWindow layerWnd;
-	NameWindow nameWnd;
-	TerrainGenerator terragen;
-
 	Editor* main = nullptr;
 
-	wi::gui::Button rendererWnd_Toggle;
-	wi::gui::Button postprocessWnd_Toggle;
-	wi::gui::Button paintToolWnd_Toggle;
-	wi::gui::Button terrainWnd_Toggle;
-	wi::gui::Button weatherWnd_Toggle;
-	wi::gui::Button objectWnd_Toggle;
-	wi::gui::Button meshWnd_Toggle;
-	wi::gui::Button materialWnd_Toggle;
-	wi::gui::Button cameraWnd_Toggle;
-	wi::gui::Button envProbeWnd_Toggle;
-	wi::gui::Button decalWnd_Toggle;
-	wi::gui::Button soundWnd_Toggle;
-	wi::gui::Button lightWnd_Toggle;
-	wi::gui::Button animWnd_Toggle;
-	wi::gui::Button emitterWnd_Toggle;
-	wi::gui::Button hairWnd_Toggle;
-	wi::gui::Button forceFieldWnd_Toggle;
-	wi::gui::Button springWnd_Toggle;
-	wi::gui::Button ikWnd_Toggle;
-	wi::gui::Button transformWnd_Toggle;
-	wi::gui::Button layerWnd_Toggle;
-	wi::gui::Button nameWnd_Toggle;
-	wi::gui::CheckBox translatorCheckBox;
-	wi::gui::CheckBox isScalatorCheckBox;
-	wi::gui::CheckBox isRotatorCheckBox;
-	wi::gui::CheckBox isTranslatorCheckBox;
 	wi::gui::Button saveButton;
-	wi::gui::ComboBox saveModeComboBox;
 	wi::gui::Button openButton;
 	wi::gui::Button closeButton;
+	wi::gui::Button logButton;
 	wi::gui::Button aboutButton;
 	wi::gui::Button exitButton;
-	wi::gui::CheckBox profilerEnabledCheckBox;
-	wi::gui::CheckBox physicsEnabledCheckBox;
-	wi::gui::CheckBox cinemaModeCheckBox;
-	wi::gui::ComboBox renderPathComboBox;
-	wi::gui::ComboBox sceneComboBox;
 	wi::gui::Label aboutLabel;
 
-	wi::gui::TreeList entityTree;
-	wi::unordered_set<wi::ecs::Entity> entitytree_added_items;
-	wi::unordered_set<wi::ecs::Entity> entitytree_opened_items;
-	void PushToEntityTree(wi::ecs::Entity entity, int level);
-	void RefreshEntityTree();
-
-	wi::gui::Slider pathTraceTargetSlider;
-	wi::gui::Label pathTraceStatisticsLabel;
+	OptionsWindow optionsWnd;
+	ComponentsWindow componentsWnd;
 
 	std::unique_ptr<wi::RenderPath3D> renderPath;
 	enum RENDERPATH
@@ -162,23 +81,26 @@ public:
 	void AddSelected(wi::ecs::Entity entity);
 	void AddSelected(const wi::scene::PickResult& picked);
 	bool IsSelected(wi::ecs::Entity entity) const;
+	bool selectAll = false;
+	wi::unordered_set<wi::ecs::Entity> selectAllStorage;
 
 
 	wi::Archive clipboard;
 
 	enum HistoryOperationType
 	{
-		HISTORYOP_TRANSLATOR,
-		HISTORYOP_SELECTION,
-		HISTORYOP_ADD,
-		HISTORYOP_DELETE,
-		HISTORYOP_PAINTTOOL,
+		HISTORYOP_TRANSLATOR,		// translator interaction
+		HISTORYOP_SELECTION,		// selection changed
+		HISTORYOP_ADD,				// entity added
+		HISTORYOP_DELETE,			// entity removed
+		HISTORYOP_COMPONENT_DATA,	// generic component data changed
+		HISTORYOP_PAINTTOOL,		// paint tool interaction
 		HISTORYOP_NONE
 	};
 
 	void RecordSelection(wi::Archive& archive) const;
-	void RecordAddedEntity(wi::Archive& archive, wi::ecs::Entity entity);
-	void RecordAddedEntity(wi::Archive& archive, const wi::vector<wi::ecs::Entity>& entities);
+	void RecordEntity(wi::Archive& archive, wi::ecs::Entity entity);
+	void RecordEntity(wi::Archive& archive, const wi::vector<wi::ecs::Entity>& entities);
 
 	void ResetHistory();
 	wi::Archive& AdvanceHistory();
@@ -211,38 +133,38 @@ public:
 		this->renderPath->camera = &scenes[current_scene].get()->camera;
 		wi::lua::scene::SetGlobalScene(this->renderPath->scene);
 		wi::lua::scene::SetGlobalCamera(this->renderPath->camera);
-		RefreshEntityTree();
+		optionsWnd.RefreshEntityTree();
 		RefreshSceneList();
 	}
 	void RefreshSceneList()
 	{
-		sceneComboBox.ClearItems();
+		optionsWnd.sceneComboBox.ClearItems();
 		for (int i = 0; i < int(scenes.size()); ++i)
 		{
 			if (scenes[i]->path.empty())
 			{
-				sceneComboBox.AddItem("Untitled");
+				optionsWnd.sceneComboBox.AddItem("Untitled");
 			}
 			else
 			{
-				sceneComboBox.AddItem(wi::helper::RemoveExtension(wi::helper::GetFileNameFromPath(scenes[i]->path)));
+				optionsWnd.sceneComboBox.AddItem(wi::helper::RemoveExtension(wi::helper::GetFileNameFromPath(scenes[i]->path)));
 			}
 		}
-		sceneComboBox.AddItem("[New]");
-		sceneComboBox.SetSelectedWithoutCallback(current_scene);
+		optionsWnd.sceneComboBox.AddItem("[New]");
+		optionsWnd.sceneComboBox.SetSelectedWithoutCallback(current_scene);
 		std::string tooltip = "Choose a scene";
 		if (!GetCurrentEditorScene().path.empty())
 		{
 			tooltip += "\nCurrent path: " + GetCurrentEditorScene().path;
 		}
-		sceneComboBox.SetTooltip(tooltip);
+		optionsWnd.sceneComboBox.SetTooltip(tooltip);
 	}
 	void NewScene()
 	{
 		scenes.push_back(std::make_unique<EditorScene>());
 		SetCurrentScene(int(scenes.size()) - 1);
 		RefreshSceneList();
-		cameraWnd.ResetCam();
+		optionsWnd.cameraWnd.ResetCam();
 	}
 };
 
@@ -254,4 +176,3 @@ public:
 
 	void Initialize() override;
 };
-

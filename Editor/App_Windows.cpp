@@ -132,11 +132,6 @@ public:
 
 		CoreApplication::Resuming({ this, &ViewProvider::OnResuming });
 
-		main.infoDisplay.active = true;
-		main.infoDisplay.watermark = true;
-		main.infoDisplay.resolution = true;
-		main.infoDisplay.fpsinfo = true;
-
 		uwp_copy_assets();
 	}
 
@@ -251,18 +246,14 @@ protected:
 
 		if (args.EventType() == CoreAcceleratorKeyEventType::Character && args.VirtualKey() != VirtualKey::Enter)
 		{
-			char c = (char)args.VirtualKey();
+			wchar_t c = (wchar_t)args.VirtualKey();
 
 			if (c == '\b')
 			{
-				if (wi::backlog::isActive())
-					wi::backlog::deletefromInput();
 				wi::gui::TextInputField::DeleteFromInput();
 			}
 			else
 			{
-				if (wi::backlog::isActive())
-					wi::backlog::input(c);
 				wi::gui::TextInputField::AddInput(c);
 			}
 
