@@ -620,13 +620,14 @@ namespace wi::renderer
 		wi::graphics::Texture texture_cloudDepth;
 		wi::graphics::Texture texture_reproject[2];
 		wi::graphics::Texture texture_reproject_depth[2];
-		wi::graphics::Texture texture_temporal[2];
+		wi::graphics::Texture texture_reproject_additional[2];
 		wi::graphics::Texture texture_cloudMask;
 	};
 	void CreateVolumetricCloudResources(VolumetricCloudResources& res, XMUINT2 resolution);
 	void Postprocess_VolumetricClouds(
 		const VolumetricCloudResources& res,
-		wi::graphics::CommandList cmd
+		wi::graphics::CommandList cmd,
+		const wi::graphics::Texture* weatherMap = nullptr
 	);
 	void Postprocess_FXAA(
 		const wi::graphics::Texture& input,

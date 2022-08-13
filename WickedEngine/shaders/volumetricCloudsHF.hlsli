@@ -1,6 +1,8 @@
 #ifndef WI_VOLUMETRICCLOUDS_HF
 #define WI_VOLUMETRICCLOUDS_HF 
 
+#define HALF_FLT_MAX 65504.0
+
 // Amazing noise and weather creation, modified from: https://github.com/greje656/clouds
 
 /////////////////////////////////////////////// Perlin Noise ///////////////////////////////////////////////
@@ -349,6 +351,14 @@ float DilatePerlinWorley(float p, float w, float x)
         float n = w + p * (1.0 - x);
         return n * lerp(0.5, 1.0, pow(x, 1.0 / curve));
     }
+}
+
+// Calculates checkerboard undersampling position
+int ComputeCheckerBoardIndex(int2 renderCoord, int subPixelIndex)
+{
+	const int localOffset = (renderCoord.x & 1 + renderCoord.y & 1) & 1;
+	const int checkerBoardLocation = (subPixelIndex + localOffset) & 0x3;
+	return checkerBoardLocation;
 }
 
 #endif // WI_VOLUMETRICCLOUDS_HF
