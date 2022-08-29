@@ -43,12 +43,14 @@ namespace wi::lua
 	};
 	LuaInternal luainternal;
 
-	uint32_t Internal_GenScriptPID(){
+	uint32_t GeneratePID()
+	{
 		static std::atomic<uint32_t> scriptpid_next{ 0 + 1 };
 		return scriptpid_next.fetch_add(1);
 	}
 
-	uint32_t Internal_EncapsulateScript(std::string& script, const std::string& filename = "", uint32_t PID = 0){
+	uint32_t AttachScriptParameters(std::string& script, const std::string& filename, uint32_t PID,  const std::string& customparameters_prepend,  const std::string& customparameters_append)
+	{
 		static const std::string persistent_inject = R"(
 			local runProcess = function(func) 
 				success, co = Internal_runProcess(script_file(), script_pid(), func)
@@ -62,21 +64,17 @@ namespace wi::lua
 			end
 		)";
 
-		if(PID == 0){
-			PID = Internal_GenScriptPID();
-		}
-
 		// Make sure the file path doesn't contain backslash characters, replace them with forward slash.
 		//	- backslash would be recognized by lua as escape character
 		//	- the path string could be coming from unknown location (content, programmer, filepicker), so always do this
 		std::string filepath = filename;
 		std::replace(filepath.begin(), filepath.end(), '\\', '/');
 
-		std::string dynamic_inject = "local function script_file() return \""+ filepath +"\" end\n";
-		dynamic_inject += "local function script_pid() return \""+std::to_string(PID)+"\" end\n";
-		dynamic_inject += "local function script_dir() return \""+wi::helper::GetDirectoryFromPath(filepath)+"\" end\n";
+		std::string dynamic_inject = "local function script_file() return \"" + filepath + "\" end\n";
+		dynamic_inject += "local function script_pid() return \"" + std::to_string(PID) + "\" end\n";
+		dynamic_inject += "local function script_dir() return \"" + wi::helper::GetDirectoryFromPath(filepath) + "\" end\n";
 		dynamic_inject += persistent_inject;
-		script = dynamic_inject + script;
+		script = dynamic_inject + customparameters_prepend + script + customparameters_append;
 
 		return PID;
 	}
@@ -87,18 +85,21 @@ namespace wi::lua
 
 		if (argc > 0)
 		{
-			bool fixedpath = false;
 			uint32_t PID = 0;
 
 			std::string filename = SGetString(L, 1);
 			if(argc >= 2) PID = SGetInt(L, 2);
+			std::string customparameters_prepend;
+			if(argc >= 3) customparameters_prepend = SGetString(L, 3);
+			std::string customparameters_append;
+			if(argc >= 4) customparameters_prepend = SGetString(L, 4);
 
 			wi::vector<uint8_t> filedata;
 
 			if (wi::helper::FileRead(filename, filedata))
 			{
 				std::string command = std::string(filedata.begin(), filedata.end());
-				PID = Internal_EncapsulateScript(command, filename, PID);
+				PID = AttachScriptParameters(command, filename, PID, customparameters_prepend, customparameters_append);
 
 				int status = luaL_loadstring(L, command.c_str());
 				if (status == 0)
@@ -210,7 +211,7 @@ namespace wi::lua
 		if (wi::helper::FileRead(filename, filedata))
 		{
 			auto script = std::string(filedata.begin(), filedata.end());
-			Internal_EncapsulateScript(script, filename);
+			AttachScriptParameters(script, filename);
 			return RunText(script);
 		}
 		return false;
@@ -434,6 +435,78 @@ namespace wi::lua
 	{
 		lua_pushnil(L);
 	}
+
+	int IntProperty::Get(lua_State* L)
+	{
+		SSetInt(L, *data);
+		return 1;
+	}
+	int IntProperty::Set(lua_State* L)
+	{
+		*data = SGetInt(L, 1);
+		return 0;
+	}
+	int LongProperty::Get(lua_State* L)
+	{
+		SSetLong(L, *data);
+		return 1;
+	}
+	int LongProperty::Set(lua_State* L)
+	{
+		*data = SGetLong(L, 1);
+		return 0;
+	}
+	int LongLongProperty::Get(lua_State* L)
+	{
+		SSetLongLong(L, *data);
+		return 1;
+	}
+	int LongLongProperty::Set(lua_State* L)
+	{
+		*data = SGetLongLong(L, 1);
+		return 0;
+	}
+	int FloatProperty::Get(lua_State* L)
+	{
+		SSetFloat(L, *data);
+		return 1;
+	}
+	int FloatProperty::Set(lua_State* L)
+	{
+		*data = SGetFloat(L, 1);
+		return 0;
+	}
+	int DoubleProperty::Get(lua_State* L)
+	{
+		SSetDouble(L, *data);
+		return 1;
+	}
+	int DoubleProperty::Set(lua_State* L)
+	{
+		*data = SGetDouble(L, 1);
+		return 0;
+	}
+	int StringProperty::Get(lua_State* L)
+	{
+		SSetString(L, *data);
+		return 1;
+	}
+	int StringProperty::Set(lua_State* L)
+	{
+		*data = SGetString(L, 1);
+		return 0;
+	}
+	int BoolProperty::Get(lua_State* L)
+	{
+		SSetBool(L, *data);
+		return 1;
+	}
+	int BoolProperty::Set(lua_State* L)
+	{
+		*data = SGetBool(L, 1);
+		return 0;
+	}
+
 
 	void SError(lua_State* L, const std::string& error)
 	{

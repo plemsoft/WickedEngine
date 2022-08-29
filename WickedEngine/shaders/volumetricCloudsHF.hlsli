@@ -1,7 +1,6 @@
 #ifndef WI_VOLUMETRICCLOUDS_HF
 #define WI_VOLUMETRICCLOUDS_HF 
 #include "globals.hlsli"
-#include "skyAtmosphere.hlsli"
 
 #define HALF_FLT_MAX 65504.0
 
@@ -400,7 +399,7 @@ float3 SampleWeather(Texture2D<float4> texture_weatherMap, float3 pos, float hei
 	
     // Apply effects for coverage
 	weatherData.r = RemapClamped(weatherData.r * GetWeather().volumetric_clouds.CoverageAmount, 0.0, 1.0, GetWeather().volumetric_clouds.CoverageMinimum, 1.0);
-	weatherData.g = RemapClamped(weatherData.g * GetWeather().volumetric_clouds.TypeAmount, 0.0, 1.0, GetWeather().volumetric_clouds.TypeOverall, 1.0);
+	weatherData.g = RemapClamped(weatherData.g * GetWeather().volumetric_clouds.TypeAmount, 0.0, 1.0, GetWeather().volumetric_clouds.TypeMinimum, 1.0);
     
 	// Apply anvil clouds to coverage
 	weatherData.r = pow(weatherData.r, max(Remap(pow(1.0 - heightFraction, GetWeather().volumetric_clouds.AnvilOverhangHeight), 0.7, 0.8, 1.0, GetWeather().volumetric_clouds.AnvilAmount + 1.0), 0.0));
@@ -458,6 +457,34 @@ float SampleCloudDensity(Texture3D<float4> texture_shapeNoise, Texture3D<float4>
 	}
 	
 	return max(cloudSample, 0.0);
+}
+
+////////////////////////////////////// Shadow ////////////////////////////////////////////////
+
+inline float shadow_2D_volumetricclouds(float3 P)
+{
+	// Project into shadow map space (no need to divide by .w because ortho projection!):
+	float3 shadow_pos = mul(GetFrame().cloudShadowLightSpaceMatrix, float4(P, 1)).xyz;
+	float3 shadow_uv = clipspace_to_uv(shadow_pos);
+
+	[branch]
+	if (is_saturated(shadow_uv))
+	{
+		float cloudShadowSampleZ = shadow_pos.z;
+
+		Texture2D texture_volumetricclouds_shadow = bindless_textures[GetFrame().texture_volumetricclouds_shadow_index];
+		float3 cloudShadowData = texture_volumetricclouds_shadow.SampleLevel(sampler_linear_clamp, shadow_uv.xy, 0.0f).rgb;
+
+		float sampleDepthKm = saturate(1.0 - cloudShadowSampleZ) * GetFrame().cloudShadowFarPlaneKm;
+		
+		float opticalDepth = cloudShadowData.g * (max(0.0f, cloudShadowData.r - sampleDepthKm) * SKY_UNIT_TO_M);
+		opticalDepth = min(cloudShadowData.b, opticalDepth);
+
+		float transmittance = saturate(exp(-opticalDepth));
+		return transmittance;
+	}
+
+	return 1.0;
 }
 
 #endif // WI_VOLUMETRICCLOUDS_HF

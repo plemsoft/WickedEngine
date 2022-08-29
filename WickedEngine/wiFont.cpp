@@ -14,7 +14,7 @@
 #include "wiUnorderedSet.h"
 #include "wiVector.h"
 
-#include "Utility/arial.h"
+#include "Utility/liberation_sans.h"
 #include "Utility/stb_truetype.h"
 
 #include <fstream>
@@ -283,10 +283,8 @@ namespace wi::font
 		// add default font if there is none yet:
 		if (fontStyles.empty())
 		{
-			AddFontStyle("arial", arial, sizeof(arial));
+			AddFontStyle("Liberation Sans", liberation_sans, sizeof(liberation_sans));
 		}
-
-		GraphicsDevice* device = wi::graphics::GetDevice();
 
 		RasterizerState rs;
 		rs.fill_mode = FillMode::SOLID;
@@ -423,9 +421,9 @@ namespace wi::font
 					rect.h -= 2;
 
 					const int32_t hash = rect.id;
-					const wchar_t code = codefromhash(hash);
-					const int style = stylefromhash(hash);
-					const float height = (float)heightfromhash(hash);
+					//const wchar_t code = codefromhash(hash);
+					//const int style = stylefromhash(hash);
+					//const float height = (float)heightfromhash(hash);
 					Glyph& glyph = glyph_lookup[hash];
 					Bitmap& bitmap = bitmap_lookup[hash];
 
