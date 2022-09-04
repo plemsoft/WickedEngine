@@ -105,6 +105,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Editor\TerrainGenerator.h" />
     <ClInclude Include="ImGui\imconfig.h" />
     <ClInclude Include="ImGui\imgui.h" />
     <ClInclude Include="ImGui\imgui_impl_win32.h" />
@@ -121,6 +122,7 @@
   <ItemGroup>
     <ClCompile Include="..\Editor\ModelImporter_GLTF.cpp" />
     <ClCompile Include="..\Editor\ModelImporter_OBJ.cpp" />
+    <ClCompile Include="..\Editor\TerrainGenerator.cpp" />
     <ClCompile Include="ImGui\imgui.cpp" />
     <ClCompile Include="ImGui\ImGuizmo.cpp" />
     <ClCompile Include="ImGui\imgui_demo.cpp" />

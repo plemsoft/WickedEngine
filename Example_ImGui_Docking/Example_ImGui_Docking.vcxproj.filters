@@ -37,6 +37,7 @@
     <ClCompile Include="ImGui\ImGuizmo.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
+    <ClCompile Include="..\Editor\TerrainGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -75,6 +76,7 @@
     <ClInclude Include="targetver.h">
       <Filter>Code</Filter>
     </ClInclude>
+    <ClInclude Include="..\Editor\TerrainGenerator.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
